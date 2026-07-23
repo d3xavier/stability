@@ -52,7 +52,7 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
           rankedCharacters {
             id
             name
-            class
+            classID
           }
         }
       }
