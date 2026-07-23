@@ -26,8 +26,28 @@ async function fetchReportRoster(reportCode, accessToken) {
     body: JSON.stringify({ query })
   });
 
-  const { data } = await response.json();
-  return data.reportData.report;
+  if (!response.ok) {
+    throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+  }
+
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.error('Failed to parse response as JSON. Response text:', text.substring(0, 200));
+    throw new Error('API returned invalid JSON. Check console for details and verify your API token is valid.');
+  }
+
+  if (data.errors) {
+    throw new Error(`API Error: ${data.errors.map(err => err.message).join(', ')}`);
+  }
+
+  if (!data.data || !data.data.reportData || !data.data.reportData.report) {
+    throw new Error('Invalid report data received from API');
+  }
+
+  return data.data.reportData.report;
 }
 
 // Logic to aggregate attendance across multiple filtered logs
