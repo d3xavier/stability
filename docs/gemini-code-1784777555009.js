@@ -22,7 +22,9 @@ async function getAccessToken(clientId, clientSecret) {
   });
 
   if (!response.ok) {
-    throw new Error(`OAuth token request failed: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error('OAuth token error:', errorText);
+    throw new Error(`OAuth token request failed: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.json();
@@ -31,6 +33,7 @@ async function getAccessToken(clientId, clientSecret) {
   // Cache token for its lifetime (usually 1 hour)
   tokenExpiry = new Date(Date.now() + (data.expires_in * 1000));
   
+  console.log('OAuth token obtained, expires in', data.expires_in, 'seconds');
   return cachedToken;
 }
 
@@ -56,7 +59,10 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
     }
   `;
 
-  const response = await fetch('https://fresh.warcraftlogs.com/api/v2/client', {
+  console.log('Fetching report with code:', reportCode);
+  console.log('Using endpoint: https://www.warcraftlogs.com/api/v2/client');
+
+  const response = await fetch('https://www.warcraftlogs.com/api/v2/client', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -65,24 +71,32 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
     body: JSON.stringify({ query })
   });
 
+  console.log('API Response Status:', response.status);
+
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('API Error Response:', errorText.substring(0, 500));
     throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
   }
 
   const text = await response.text();
+  console.log('API Response Text:', text.substring(0, 500));
+
   let data;
   try {
     data = JSON.parse(text);
   } catch (e) {
-    console.error('Failed to parse response as JSON. Response text:', text.substring(0, 200));
+    console.error('Failed to parse response as JSON. Full response:', text);
     throw new Error('API returned invalid JSON. Check console for details.');
   }
 
   if (data.errors) {
+    console.error('GraphQL Errors:', data.errors);
     throw new Error(`API Error: ${data.errors.map(err => err.message).join(', ')}`);
   }
 
   if (!data.data || !data.data.reportData || !data.data.reportData.report) {
+    console.error('Invalid report structure:', data);
     throw new Error('Invalid report data received from API');
   }
 
