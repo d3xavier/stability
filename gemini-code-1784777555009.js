@@ -36,7 +36,7 @@ function calculateAttendance(reports, allowedDays, allowedRaids) {
   
   // Filter reports by selected day of week and raid instance
   const validReports = reports.filter(report => {
-    const reportDay = new Date(report.startTime).toLocaleDateString('en-US', { weekday: 'Monday' });
+    const reportDay = new Date(report.startTime).toLocaleDateString('en-US', { weekday: 'long' });
     const isDayAllowed = allowedDays.includes(reportDay);
     const isRaidAllowed = allowedRaids.includes(report.zone.name);
     return isDayAllowed && isRaidAllowed;
@@ -68,3 +68,6 @@ function calculateAttendance(reports, allowedDays, allowedRaids) {
 
   return { totalEligibleRaids, playerStats };
 }
+
+// Export for use in other modules
+export { fetchReportRoster, calculateAttendance };
