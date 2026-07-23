@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warcraft Logs Attendance Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input, select, button {
+      padding: 8px 12px;
+      margin: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #0066cc;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0052a3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f0f0;
+      font-weight: bold;
+    }
+    .error {
+      color: #d32f2f;
+      padding: 10px;
+      background-color: #ffebee;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Warcraft Logs Attendance Tracker</h1>
+    
+    <div id="form-section">
+      <input type="text" id="accessToken" placeholder="Enter Warcraft Logs API Token" style="width: 300px;">
+      <input type="text" id="reportCode" placeholder="Enter Report Code">
+      <select id="allowedDays">
+        <option value="">Select Days</option>
+        <option value="Monday">Monday</option>
+        <option value="Wednesday">Wednesday</option>
+        <option value="Thursday">Thursday</option>
+        <option value="Friday">Friday</option>
+        <option value="Saturday">Saturday</option>
+        <option value="Sunday">Sunday</option>
+      </select>
+      <button onclick="handleFetchReport()">Fetch Report</button>
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <table id="resultsTable" style="display: none;">
+      <thead>
+        <tr>
+          <th>Player Name</th>
+          <th>Attended</th>
+          <th>Missed</th>
+          <th>Attendance %</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <script src="gemini-code-1784777555009.js"></script>
+  <script>
+    let allReports = [];
+
+    async function handleFetchReport() {
+      const token = document.getElementById('accessToken').value;
+      const reportCode = document.getElementById('reportCode').value;
+      const errorDiv = document.getElementById('error');
+
+      if (!token || !reportCode) {
+        errorDiv.textContent = 'Please enter both API token and report code';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      try {
+        errorDiv.style.display = 'none';
+        const report = await fetchReportRoster(reportCode, token);
+        allReports.push(report);
+        
+        const allowedDays = ['Monday', 'Wednesday', 'Friday']; // Customize as needed
+        const allowedRaids = [report.zone.name]; // Include the fetched raid
+        
+        const { totalEligibleRaids, playerStats } = calculateAttendance(allReports, allowedDays, allowedRaids);
+        
+        displayResults(playerStats, totalEligibleRaids);
+      } catch (error) {
+        errorDiv.textContent = `Error: ${error.message}`;
+        errorDiv.style.display = 'block';
+      }
+    }
+
+    function displayResults(playerStats, totalEligibleRaids) {
+      const tableBody = document.getElementById('tableBody');
+      const table = document.getElementById('resultsTable');
+      
+      tableBody.innerHTML = '';
+      
+      Object.entries(playerStats).forEach(([name, stats]) => {
+        const row = `
+          <tr>
+            <td>${name}</td>
+            <td>${stats.attended}</td>
+            <td>${stats.missed}</td>
+            <td>${stats.percentage}%</td>
+          </tr>
+        `;
+        tableBody.innerHTML += row;
+      });
+      
+      table.style.display = 'table';
+    }
+  </script>
+</body>
+</html>
