@@ -90,8 +90,12 @@
     </table>
   </div>
 
-  <script src="gemini-code-1784777555009.js"></script>
-  <script>
+  <script type="module">
+    import { fetchReportRoster, calculateAttendance } from './gemini-code-1784777555009.js';
+    
+    window.handleFetchReport = handleFetchReport;
+    window.displayResults = displayResults;
+    
     let allReports = [];
 
     async function handleFetchReport() {
