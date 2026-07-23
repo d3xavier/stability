@@ -18,7 +18,7 @@
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    input, select, button {
+    input, button {
       padding: 8px 12px;
       margin: 5px;
       border: 1px solid #ddd;
@@ -61,6 +61,13 @@
       margin: 10px 0;
       font-size: 0.9em;
     }
+    .loading {
+      color: #1976d2;
+      padding: 10px;
+      background-color: #e3f2fd;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
   </style>
 </head>
 <body>
@@ -68,23 +75,24 @@
     <h1>Warcraft Logs Attendance Tracker</h1>
     
     <div class="info">
-      <strong>OAuth Setup Required:</strong> Get your Client ID and Client Secret from your Warcraft Logs account settings.
+      <strong>Setup:</strong> Enter your OAuth Client ID and Secret to fetch attendance data for Stability guild (Dreamscythe-US) from reports by Torrezz on Tuesday/Thursday.
     </div>
     
     <div id="form-section">
       <input type="text" id="clientId" placeholder="Enter Client ID" style="width: 300px;">
       <input type="password" id="clientSecret" placeholder="Enter Client Secret" style="width: 300px;">
-      <input type="text" id="reportCode" placeholder="Enter Report Code">
-      <button onclick="handleFetchReport()">Fetch Report</button>
+      <button onclick="handleFetchReports()">Generate Attendance Report</button>
     </div>
 
+    <div id="loading" class="loading" style="display: none;"></div>
     <div id="error" class="error" style="display: none;"></div>
 
     <table id="resultsTable" style="display: none;">
       <thead>
         <tr>
           <th>Player Name</th>
-          <th>Class ID</th>
+          <th>Raids Attended</th>
+          <th>Attendance %</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
@@ -92,53 +100,82 @@
   </div>
 
   <script type="module">
-    import { fetchReportRoster } from './gemini-code-1784777555009.js';
+    import { searchGuildReports, fetchReportRoster, calculateAttendance } from './gemini-code-1784777555009.js';
     
-    window.handleFetchReport = handleFetchReport;
+    window.handleFetchReports = handleFetchReports;
     window.displayResults = displayResults;
 
-    async function handleFetchReport() {
+    async function handleFetchReports() {
       const clientId = document.getElementById('clientId').value;
       const clientSecret = document.getElementById('clientSecret').value;
-      const reportCode = document.getElementById('reportCode').value;
       const errorDiv = document.getElementById('error');
+      const loadingDiv = document.getElementById('loading');
 
-      if (!clientId || !clientSecret || !reportCode) {
-        errorDiv.textContent = 'Please enter Client ID, Client Secret, and Report Code';
+      if (!clientId || !clientSecret) {
+        errorDiv.textContent = 'Please enter Client ID and Client Secret';
         errorDiv.style.display = 'block';
         return;
       }
 
       try {
         errorDiv.style.display = 'none';
-        const report = await fetchReportRoster(reportCode, clientId, clientSecret);
+        loadingDiv.textContent = 'Searching for guild reports...';
+        loadingDiv.style.display = 'block';
         
-        console.log('Report data:', report);
-        console.log('Ranked characters:', report.rankedCharacters);
+        // Search for reports
+        const reportCodes = await searchGuildReports(clientId, clientSecret);
         
-        displayResults(report.rankedCharacters);
+        if (!reportCodes || reportCodes.length === 0) {
+          errorDiv.textContent = 'No reports found matching criteria';
+          errorDiv.style.display = 'block';
+          loadingDiv.style.display = 'none';
+          return;
+        }
+
+        loadingDiv.textContent = `Found ${reportCodes.length} reports. Fetching roster data...`;
+        
+        // Fetch all reports
+        const allReports = [];
+        for (const code of reportCodes) {
+          loadingDiv.textContent = `Fetching report ${allReports.length + 1}/${reportCodes.length}...`;
+          const report = await fetchReportRoster(code, clientId, clientSecret);
+          allReports.push(report);
+        }
+
+        loadingDiv.textContent = `Fetched ${allReports.length} reports. Calculating attendance...`;
+        
+        // Calculate attendance across all reports
+        const { totalEligibleRaids, playerStats } = calculateAttendance(allReports, []);
+        
+        loadingDiv.style.display = 'none';
+        displayResults(playerStats, totalEligibleRaids);
       } catch (error) {
         errorDiv.textContent = `Error: ${error.message}`;
         errorDiv.style.display = 'block';
+        loadingDiv.style.display = 'none';
       }
     }
 
-    function displayResults(characters) {
+    function displayResults(playerStats, totalEligibleRaids) {
       const tableBody = document.getElementById('tableBody');
       const table = document.getElementById('resultsTable');
       
       tableBody.innerHTML = '';
       
-      if (!characters || characters.length === 0) {
-        console.warn('No characters found in report');
+      if (!playerStats || Object.keys(playerStats).length === 0) {
+        console.warn('No player stats found');
         return;
       }
 
-      characters.forEach(character => {
+      // Sort by player name
+      const sortedPlayers = Object.entries(playerStats).sort((a, b) => a[0].localeCompare(b[0]));
+
+      sortedPlayers.forEach(([name, stats]) => {
         const row = `
           <tr>
-            <td>${character.name}</td>
-            <td>${character.classID}</td>
+            <td>${name}</td>
+            <td>${stats.attended}/${totalEligibleRaids}</td>
+            <td>${stats.percentage}%</td>
           </tr>
         `;
         tableBody.innerHTML += row;
