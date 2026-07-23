@@ -1,5 +1,44 @@
-// Example helper logic for fetching report data from Warcraft Logs v2 API
-async function fetchReportRoster(reportCode, accessToken) {
+// OAuth token cache
+let cachedToken = null;
+let tokenExpiry = null;
+
+// Exchange client credentials for an access token
+async function getAccessToken(clientId, clientSecret) {
+  // Check if we have a valid cached token
+  if (cachedToken && tokenExpiry && new Date() < tokenExpiry) {
+    return cachedToken;
+  }
+
+  const response = await fetch('https://www.warcraftlogs.com/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }).toString(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OAuth token request failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  cachedToken = data.access_token;
+  
+  // Cache token for its lifetime (usually 1 hour)
+  tokenExpiry = new Date(Date.now() + (data.expires_in * 1000));
+  
+  return cachedToken;
+}
+
+// Fetch report using OAuth token
+async function fetchReportRoster(reportCode, clientId, clientSecret) {
+  // First, get an access token
+  const accessToken = await getAccessToken(clientId, clientSecret);
+
   const query = `
     query {
       reportData {
@@ -36,7 +75,7 @@ async function fetchReportRoster(reportCode, accessToken) {
     data = JSON.parse(text);
   } catch (e) {
     console.error('Failed to parse response as JSON. Response text:', text.substring(0, 200));
-    throw new Error('API returned invalid JSON. Check console for details and verify your API token is valid.');
+    throw new Error('API returned invalid JSON. Check console for details.');
   }
 
   if (data.errors) {
