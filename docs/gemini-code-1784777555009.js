@@ -113,23 +113,20 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
 }
 
 // Logic to aggregate attendance across multiple filtered logs
-function calculateAttendance(reports, allowedDays, allowedRaids) {
+function calculateAttendance(reports, allowedRaids) {
   const playerStats = {};
   
   console.log('Calculating attendance...');
   console.log('Total reports:', reports.length);
-  console.log('Allowed days:', allowedDays);
   console.log('Allowed raids:', allowedRaids);
 
-  // Filter reports by selected day of week and raid instance
+  // Filter reports by raid instance only (no day filtering)
   const validReports = reports.filter(report => {
-    const reportDay = new Date(report.startTime).toLocaleDateString('en-US', { weekday: 'long' });
-    const isDayAllowed = allowedDays.includes(reportDay);
     const isRaidAllowed = allowedRaids.includes(report.zone.name);
     
-    console.log(`Report: ${report.title}, Day: ${reportDay}, Zone: ${report.zone.name}, Day Allowed: ${isDayAllowed}, Raid Allowed: ${isRaidAllowed}`);
+    console.log(`Report: ${report.title}, Zone: ${report.zone.name}, Raid Allowed: ${isRaidAllowed}`);
     
-    return isDayAllowed && isRaidAllowed;
+    return isRaidAllowed;
   });
 
   console.log('Valid reports after filtering:', validReports.length);
