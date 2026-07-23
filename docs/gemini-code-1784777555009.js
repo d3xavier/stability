@@ -181,9 +181,10 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
   const report = data.data.reportData.report;
   console.log('Report fetched successfully:', {
     title: report.title,
-    zone: report.zone?.name || 'Unknown Zone', // Safe navigation operator
+    zone: report.zone?.name || 'Unknown Zone',
     startTime: report.startTime,
-    characterCount: report.rankedCharacters.length
+    characterCount: (report.rankedCharacters || []).length // Safe fallback
+    });
   });
   console.log('Characters:', report.rankedCharacters);
 
@@ -200,11 +201,12 @@ function calculateAttendance(reports) {
   const totalEligibleRaids = reports.length;
 
   reports.forEach(report => {
-    // Unique list of characters who attended this specific raid
-    const attendees = new Set(report.rankedCharacters.map(c => c.name));
+    // Safe navigation in case rankedCharacters is null or undefined
+    const characters = report.rankedCharacters || [];
+    const attendees = new Set(characters.map(c => c.name));
 
     console.log(`Processing raid: ${report.title}, Attendees:`, Array.from(attendees));
-
+  
     attendees.forEach(name => {
       if (!playerStats[name]) {
         playerStats[name] = { attended: 0, missed: 0, percentage: 0 };
