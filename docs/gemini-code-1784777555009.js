@@ -181,7 +181,7 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
   const report = data.data.reportData.report;
   console.log('Report fetched successfully:', {
     title: report.title,
-    zone: report.zone.name,
+    zone: report.zone?.name || 'Unknown Zone', // Safe navigation operator
     startTime: report.startTime,
     characterCount: report.rankedCharacters.length
   });
