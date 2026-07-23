@@ -37,14 +37,14 @@ async function getAccessToken(clientId, clientSecret) {
   return cachedToken;
 }
 
-// Search for guild reports by guild name, realm, user, and day of week
+// Search for guild reports by guild ID, filter by owner and day of week
 async function searchGuildReports(clientId, clientSecret) {
   const accessToken = await getAccessToken(clientId, clientSecret);
 
   const query = `
     query {
       reportData {
-        reports(guildID: 20108, userID: 6485830, limit: 100) {
+        reports(guildID: 823196, limit: 100) {
           data {
             code
             title
@@ -57,7 +57,7 @@ async function searchGuildReports(clientId, clientSecret) {
     }
   `;
 
-  console.log('Searching for guild reports...');
+  console.log('Searching for guild reports from guild ID 823196...');
 
   const response = await fetch('https://www.warcraftlogs.com/api/v2/client', {
     method: 'POST',
@@ -94,21 +94,22 @@ async function searchGuildReports(clientId, clientSecret) {
   }
 
   const reports = data.data.reportData.reports.data || [];
-  console.log(`Found ${reports.length} total reports for guild/user`);
+  console.log(`Found ${reports.length} total reports for guild`);
 
-  // Filter reports: only Tuesday and Thursday
+  // Filter reports: owner must be "Torrezz" and must be Tuesday or Thursday
   const allowedDays = ['Tuesday', 'Thursday'];
   const filteredReports = reports.filter(report => {
+    const isOwnerTorrezz = report.owner && report.owner.name === 'Torrezz';
     const reportDate = new Date(report.startTime);
     const dayName = reportDate.toLocaleDateString('en-US', { weekday: 'long' });
     const isDayAllowed = allowedDays.includes(dayName);
     
-    console.log(`Report: ${report.code}, Day: ${dayName}, Allowed: ${isDayAllowed}`);
+    console.log(`Report: ${report.code}, Owner: ${report.owner?.name}, Day: ${dayName}, Valid: ${isOwnerTorrezz && isDayAllowed}`);
     
-    return isDayAllowed;
+    return isOwnerTorrezz && isDayAllowed;
   });
 
-  console.log(`Filtered to ${filteredReports.length} reports for Tuesday/Thursday`);
+  console.log(`Filtered to ${filteredReports.length} reports from Torrezz on Tuesday/Thursday`);
 
   const reportCodes = filteredReports.map(report => report.code);
   console.log('Report codes:', reportCodes);
@@ -190,19 +191,15 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
 }
 
 // Logic to aggregate attendance across multiple reports
-function calculateAttendance(reports, allowedRaids) {
+function calculateAttendance(reports) {
   const playerStats = {};
   
   console.log('Calculating attendance...');
   console.log('Total reports:', reports.length);
 
-  // Process all reports (no filtering, already filtered in searchGuildReports)
-  const validReports = reports;
-  console.log('Valid reports:', validReports.length);
+  const totalEligibleRaids = reports.length;
 
-  const totalEligibleRaids = validReports.length;
-
-  validReports.forEach(report => {
+  reports.forEach(report => {
     // Unique list of characters who attended this specific raid
     const attendees = new Set(report.rankedCharacters.map(c => c.name));
 
