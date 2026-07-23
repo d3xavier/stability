@@ -75,16 +75,6 @@
       <input type="text" id="clientId" placeholder="Enter Client ID" style="width: 300px;">
       <input type="password" id="clientSecret" placeholder="Enter Client Secret" style="width: 300px;">
       <input type="text" id="reportCode" placeholder="Enter Report Code">
-      <select id="allowedDays">
-        <option value="">Select Days</option>
-        <option value="Monday">Monday</option>
-        <option value="Tuesday">Tuesday</option>
-        <option value="Wednesday">Wednesday</option>
-        <option value="Thursday">Thursday</option>
-        <option value="Friday">Friday</option>
-        <option value="Saturday">Saturday</option>
-        <option value="Sunday">Sunday</option>
-      </select>
       <button onclick="handleFetchReport()">Fetch Report</button>
     </div>
 
@@ -94,9 +84,7 @@
       <thead>
         <tr>
           <th>Player Name</th>
-          <th>Attended</th>
-          <th>Missed</th>
-          <th>Attendance %</th>
+          <th>Class ID</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
@@ -104,12 +92,10 @@
   </div>
 
   <script type="module">
-    import { fetchReportRoster, calculateAttendance } from './gemini-code-1784777555009.js';
+    import { fetchReportRoster } from './gemini-code-1784777555009.js';
     
     window.handleFetchReport = handleFetchReport;
     window.displayResults = displayResults;
-    
-    let allReports = [];
 
     async function handleFetchReport() {
       const clientId = document.getElementById('clientId').value;
@@ -126,33 +112,33 @@
       try {
         errorDiv.style.display = 'none';
         const report = await fetchReportRoster(reportCode, clientId, clientSecret);
-        allReports.push(report);
         
-        const allowedDays = ['Monday', 'Wednesday', 'Friday']; // Customize as needed
-        const allowedRaids = [report.zone.name]; // Include the fetched raid
+        console.log('Report data:', report);
+        console.log('Ranked characters:', report.rankedCharacters);
         
-        const { totalEligibleRaids, playerStats } = calculateAttendance(allReports, allowedDays, allowedRaids);
-        
-        displayResults(playerStats, totalEligibleRaids);
+        displayResults(report.rankedCharacters);
       } catch (error) {
         errorDiv.textContent = `Error: ${error.message}`;
         errorDiv.style.display = 'block';
       }
     }
 
-    function displayResults(playerStats, totalEligibleRaids) {
+    function displayResults(characters) {
       const tableBody = document.getElementById('tableBody');
       const table = document.getElementById('resultsTable');
       
       tableBody.innerHTML = '';
       
-      Object.entries(playerStats).forEach(([name, stats]) => {
+      if (!characters || characters.length === 0) {
+        console.warn('No characters found in report');
+        return;
+      }
+
+      characters.forEach(character => {
         const row = `
           <tr>
-            <td>${name}</td>
-            <td>${stats.attended}</td>
-            <td>${stats.missed}</td>
-            <td>${stats.percentage}%</td>
+            <td>${character.name}</td>
+            <td>${character.classID}</td>
           </tr>
         `;
         tableBody.innerHTML += row;
