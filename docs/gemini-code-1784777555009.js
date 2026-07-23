@@ -100,26 +100,47 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
     throw new Error('Invalid report data received from API');
   }
 
-  return data.data.reportData.report;
+  const report = data.data.reportData.report;
+  console.log('Report fetched successfully:', {
+    title: report.title,
+    zone: report.zone.name,
+    startTime: report.startTime,
+    characterCount: report.rankedCharacters.length
+  });
+  console.log('Characters:', report.rankedCharacters);
+
+  return report;
 }
 
 // Logic to aggregate attendance across multiple filtered logs
 function calculateAttendance(reports, allowedDays, allowedRaids) {
   const playerStats = {};
   
+  console.log('Calculating attendance...');
+  console.log('Total reports:', reports.length);
+  console.log('Allowed days:', allowedDays);
+  console.log('Allowed raids:', allowedRaids);
+
   // Filter reports by selected day of week and raid instance
   const validReports = reports.filter(report => {
     const reportDay = new Date(report.startTime).toLocaleDateString('en-US', { weekday: 'long' });
     const isDayAllowed = allowedDays.includes(reportDay);
     const isRaidAllowed = allowedRaids.includes(report.zone.name);
+    
+    console.log(`Report: ${report.title}, Day: ${reportDay}, Zone: ${report.zone.name}, Day Allowed: ${isDayAllowed}, Raid Allowed: ${isRaidAllowed}`);
+    
     return isDayAllowed && isRaidAllowed;
   });
+
+  console.log('Valid reports after filtering:', validReports.length);
 
   const totalEligibleRaids = validReports.length;
 
   validReports.forEach(report => {
     // Unique list of characters who attended this specific raid
     const attendees = new Set(report.rankedCharacters.map(c => c.name));
+
+    console.log(`Processing raid: ${report.title}, Attendees:`, Array.from(attendees));
 
     attendees.forEach(name => {
       if (!playerStats[name]) {
@@ -138,6 +159,9 @@ function calculateAttendance(reports, allowedDays, allowedRaids) {
     playerStats[name].missed = missed;
     playerStats[name].percentage = Number(percentage);
   });
+
+  console.log('Final player stats:', playerStats);
+  console.log('Total players:', Object.keys(playerStats).length);
 
   return { totalEligibleRaids, playerStats };
 }
