@@ -53,14 +53,27 @@
       border-radius: 4px;
       margin: 10px 0;
     }
+    .info {
+      color: #1976d2;
+      padding: 10px;
+      background-color: #e3f2fd;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Warcraft Logs Attendance Tracker</h1>
     
+    <div class="info">
+      <strong>OAuth Setup Required:</strong> Get your Client ID and Client Secret from your Warcraft Logs account settings.
+    </div>
+    
     <div id="form-section">
-      <input type="text" id="accessToken" placeholder="Enter Warcraft Logs API Token" style="width: 300px;">
+      <input type="text" id="clientId" placeholder="Enter Client ID" style="width: 300px;">
+      <input type="password" id="clientSecret" placeholder="Enter Client Secret" style="width: 300px;">
       <input type="text" id="reportCode" placeholder="Enter Report Code">
       <select id="allowedDays">
         <option value="">Select Days</option>
@@ -99,19 +112,20 @@
     let allReports = [];
 
     async function handleFetchReport() {
-      const token = document.getElementById('accessToken').value;
+      const clientId = document.getElementById('clientId').value;
+      const clientSecret = document.getElementById('clientSecret').value;
       const reportCode = document.getElementById('reportCode').value;
       const errorDiv = document.getElementById('error');
 
-      if (!token || !reportCode) {
-        errorDiv.textContent = 'Please enter both API token and report code';
+      if (!clientId || !clientSecret || !reportCode) {
+        errorDiv.textContent = 'Please enter Client ID, Client Secret, and Report Code';
         errorDiv.style.display = 'block';
         return;
       }
 
       try {
         errorDiv.style.display = 'none';
-        const report = await fetchReportRoster(reportCode, token);
+        const report = await fetchReportRoster(reportCode, clientId, clientSecret);
         allReports.push(report);
         
         const allowedDays = ['Monday', 'Wednesday', 'Friday']; // Customize as needed
