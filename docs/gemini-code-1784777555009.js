@@ -37,9 +37,87 @@ async function getAccessToken(clientId, clientSecret) {
   return cachedToken;
 }
 
+// Search for guild reports by guild name, realm, user, and day of week
+async function searchGuildReports(clientId, clientSecret) {
+  const accessToken = await getAccessToken(clientId, clientSecret);
+
+  const query = `
+    query {
+      reportData {
+        reports(guildID: 20108, userID: 6485830, limit: 100) {
+          data {
+            code
+            title
+            startTime
+            zone { id name }
+            owner { name }
+          }
+        }
+      }
+    }
+  `;
+
+  console.log('Searching for guild reports...');
+
+  const response = await fetch('https://www.warcraftlogs.com/api/v2/client', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ query })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('API Error Response:', errorText.substring(0, 500));
+    throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+  }
+
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.error('Failed to parse response as JSON. Full response:', text);
+    throw new Error('API returned invalid JSON. Check console for details.');
+  }
+
+  if (data.errors) {
+    console.error('GraphQL Errors:', data.errors);
+    throw new Error(`API Error: ${data.errors.map(err => err.message).join(', ')}`);
+  }
+
+  if (!data.data || !data.data.reportData || !data.data.reportData.reports) {
+    console.error('Invalid report structure:', data);
+    throw new Error('Invalid report data received from API');
+  }
+
+  const reports = data.data.reportData.reports.data || [];
+  console.log(`Found ${reports.length} total reports for guild/user`);
+
+  // Filter reports: only Tuesday and Thursday
+  const allowedDays = ['Tuesday', 'Thursday'];
+  const filteredReports = reports.filter(report => {
+    const reportDate = new Date(report.startTime);
+    const dayName = reportDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const isDayAllowed = allowedDays.includes(dayName);
+    
+    console.log(`Report: ${report.code}, Day: ${dayName}, Allowed: ${isDayAllowed}`);
+    
+    return isDayAllowed;
+  });
+
+  console.log(`Filtered to ${filteredReports.length} reports for Tuesday/Thursday`);
+
+  const reportCodes = filteredReports.map(report => report.code);
+  console.log('Report codes:', reportCodes);
+
+  return reportCodes;
+}
+
 // Fetch report using OAuth token
 async function fetchReportRoster(reportCode, clientId, clientSecret) {
-  // First, get an access token
   const accessToken = await getAccessToken(clientId, clientSecret);
 
   const query = `
@@ -60,7 +138,6 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
   `;
 
   console.log('Fetching report with code:', reportCode);
-  console.log('Using endpoint: https://www.warcraftlogs.com/api/v2/client');
 
   const response = await fetch('https://www.warcraftlogs.com/api/v2/client', {
     method: 'POST',
@@ -112,24 +189,16 @@ async function fetchReportRoster(reportCode, clientId, clientSecret) {
   return report;
 }
 
-// Logic to aggregate attendance across multiple filtered logs
+// Logic to aggregate attendance across multiple reports
 function calculateAttendance(reports, allowedRaids) {
   const playerStats = {};
   
   console.log('Calculating attendance...');
   console.log('Total reports:', reports.length);
-  console.log('Allowed raids:', allowedRaids);
 
-  // Filter reports by raid instance only (no day filtering)
-  const validReports = reports.filter(report => {
-    const isRaidAllowed = allowedRaids.includes(report.zone.name);
-    
-    console.log(`Report: ${report.title}, Zone: ${report.zone.name}, Raid Allowed: ${isRaidAllowed}`);
-    
-    return isRaidAllowed;
-  });
-
-  console.log('Valid reports after filtering:', validReports.length);
+  // Process all reports (no filtering, already filtered in searchGuildReports)
+  const validReports = reports;
+  console.log('Valid reports:', validReports.length);
 
   const totalEligibleRaids = validReports.length;
 
@@ -164,4 +233,4 @@ function calculateAttendance(reports, allowedRaids) {
 }
 
 // Export for use in other modules
-export { fetchReportRoster, calculateAttendance };
+export { searchGuildReports, fetchReportRoster, calculateAttendance };
